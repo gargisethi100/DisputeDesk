@@ -122,9 +122,17 @@ The 11-point gap between raw and gated accuracy is the measured value of the det
 The mock column uses the evidence-driven, deadline-blind heuristic recommender on purpose: it is the
 same fallback a production outage would trigger, and DSP008 shows why the gate — not the model — owns deadlines.
 
-**Retrieval ablation** (`python eval/ablation.py` → `results/ablation.md`): BM25 vs bge-small vs hybrid-RRF,
-on structured graph queries and natural-language analyst queries. ClauseLens measured BM25 > dense on a legal
-corpus; this checks whether the finding transfers to a second keyword-heavy regulatory corpus.
+**Retrieval ablation** (`python eval/ablation.py` → `results/ablation.md`), BM25 vs bge-small vs hybrid-RRF:
+
+| Query family | BM25 R@1 | dense R@1 | hybrid R@1 |
+|---|---|---|---|
+| Structured (what the graph sends: reason code + keywords), n=6 | 1.00 | 1.00 | 1.00 |
+| Natural-language analyst phrasing, no reason code, n=12 | 0.58 | **0.75** | **0.75** |
+
+The prior from ClauseLens (BM25 > dense on a legal corpus) **did not transfer**: on a 12-passage corpus with
+paraphrased queries, dense wins clearly. But the graph never sends paraphrased queries — it sends the reason
+code, and on those every ranker is perfect. So the production default is **BM25-only** (no torch in the
+container) and dense is the documented upgrade path if free-text analyst search is added to the UI.
 
 ## Corpus
 
