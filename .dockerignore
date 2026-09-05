@@ -1,0 +1,13 @@
+.venv
+.git
+.gitignore
+.env
+__pycache__
+**/__pycache__
+.pytest_cache
+audit/*.jsonl
+results/*.jsonl
+*.faiss
+.index
+.vscode
+.idea

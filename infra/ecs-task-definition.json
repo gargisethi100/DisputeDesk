@@ -1,0 +1,38 @@
+{
+  "family": "disputedesk",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": { "operatingSystemFamily": "LINUX", "cpuArchitecture": "X86_64" },
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/disputedesk-execution-role",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/disputedesk-task-role",
+  "containerDefinitions": [
+    {
+      "name": "disputedesk",
+      "image": "ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/disputedesk:latest",
+      "essential": true,
+      "portMappings": [{ "containerPort": 8501, "protocol": "tcp" }],
+      "environment": [
+        { "name": "DISPUTEDESK_LLM_PROVIDER", "value": "bedrock" },
+        { "name": "AWS_REGION", "value": "ap-south-1" },
+        { "name": "BEDROCK_MODEL_ID", "value": "apac.anthropic.claude-sonnet-4-5-20250929-v1:0" },
+        { "name": "DISPUTEDESK_DENSE_RETRIEVAL", "value": "0" },
+        { "name": "DISPUTEDESK_REVIEWER", "value": "reviewer@example.com" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health').status==200 else 1)\""],
+        "interval": 30, "timeout": 5, "retries": 3, "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/disputedesk",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "app",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}
