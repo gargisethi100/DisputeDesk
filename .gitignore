@@ -1,0 +1,22 @@
+# secrets — never committed
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# runtime artefacts
+audit/*.jsonl
+results/*.jsonl
+.langgraph_api/
+*.faiss
+.index/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

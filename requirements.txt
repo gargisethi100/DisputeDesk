@@ -1,0 +1,24 @@
+# DisputeDesk — pinned dependencies
+# Python 3.13.2   (python -m venv .venv)
+# Everything pinned so `pip install -r requirements.txt` is reproducible.
+
+# --- orchestration ---
+langgraph==1.2.11
+langchain-core==1.6.2
+
+# --- contracts / validation ---
+pydantic==2.13.5
+
+# --- retrieval (BM25 is always on; dense is optional, see requirements-dense.txt) ---
+rank-bm25==0.2.2
+
+# --- model provider: Claude on AWS Bedrock (IAM creds, no API key in code) ---
+boto3==1.43.89
+
+# --- networking: route TLS through the OS trust store (corporate SSL-inspection CA); no-op elsewhere ---
+truststore==0.10.4
+
+# --- app / config / tests ---
+streamlit==1.63.0
+python-dotenv==1.2.3
+pytest==9.1.1
