@@ -47,7 +47,7 @@ class BedrockProvider:
     def __init__(self) -> None:
         import boto3                    # imported lazily so mock mode needs no AWS SDK setup
         self.model_id = os.environ["BEDROCK_MODEL_ID"]
-        self.region = os.getenv("AWS_REGION", "ap-south-1")
+        self.region = os.getenv("AWS_REGION", "us-east-1")
         self._client = boto3.client("bedrock-runtime", region_name=self.region)
         self.last_usage: dict = {}
 

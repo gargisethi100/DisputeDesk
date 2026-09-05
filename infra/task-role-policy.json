@@ -6,8 +6,8 @@
       "Effect": "Allow",
       "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
       "Resource": [
-        "arn:aws:bedrock:ap-south-1:ACCOUNT_ID:inference-profile/apac.anthropic.claude-sonnet-4-5-20250929-v1:0",
-        "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0"
+        "arn:aws:bedrock:us-east-1:ACCOUNT_ID:inference-profile/us.anthropic.claude-sonnet-4-6",
+        "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6*"
       ]
     }
   ]

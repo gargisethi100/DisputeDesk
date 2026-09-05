@@ -1,4 +1,4 @@
-# Deploy — ECS Fargate (ap-south-1), 2-hour cap
+# Deploy — ECS Fargate (us-east-1), 2-hour cap
 
 One container, one Streamlit process, model calls go to Bedrock via the **task role**
 (no keys in the image or env). Fallback if the cap is hit: Streamlit Community Cloud in mock mode.
@@ -12,7 +12,7 @@ docker run --rm disputedesk python -m pytest -q     # tests inside the image
 
 ## 1. Push to ECR
 ```bash
-export AWS_REGION=ap-south-1 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export AWS_REGION=us-east-1 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 aws ecr create-repository --repository-name disputedesk
 aws ecr get-login-password | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 docker tag disputedesk:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/disputedesk:latest
@@ -32,7 +32,7 @@ aws iam put-role-policy --role-name disputedesk-task-role --policy-name bedrock-
 ```
 `infra/ecs-trust.json` is the standard `ecs-tasks.amazonaws.com` trust policy.
 
-Enable model access for the chosen Claude model in the Bedrock console for ap-south-1 first.
+Enable model access for the chosen Claude model in the Bedrock console for us-east-1 first.
 
 ## 3. Cluster, task, service, ALB
 ```bash

@@ -76,7 +76,7 @@ and `DISPUTEDESK_DENSE_RETRIEVAL=1`. Tracing: set `LANGFUSE_*` keys; only `recom
 
 | Question | Answer in this codebase |
 |---|---|
-| **Data** — what does the model see? | Masked evidence checklist + retrieved passages + fenced, masked customer message. No PAN, no raw PII (`redaction.py`, asserted before every call). Bedrock region is configured per deployment: the production target in `infra/` is `ap-south-1` for data residency; the live eval in this repo ran in `us-east-1` because the dev API key is region-bound — see [Evaluation](#evaluation). |
+| **Data** — what does the model see? | Masked evidence checklist + retrieved passages + fenced, masked customer message. No PAN, no raw PII (`redaction.py`, asserted before every call). Bedrock in `us-east-1` (one env var + one IAM ARN to move to `ap-south-1` for in-country residency). |
 | **Identity** — who is it acting for? | One `merchant_id` per run, bound at the tool layer (`tools.py`). Reviewer identity on every decision; anonymous approvals cannot mint a token. |
 | **Action** — what can it change? | Nothing, except `actions.submit_dispute_response`, which needs a single-use `ApprovalToken` minted only from a human approve/edit and only inside the `submit` node. |
 | **Input** — what untrusted text enters prompts? | Customer messages: screened (`screening.py`), fenced, flagged. Model output is schema-validated, citation-verified, and policy-gated regardless of what the input said. |
@@ -119,10 +119,7 @@ customer's email (DSP009), and one belonging to a second tenant (DSP010). See `r
 | Cross-tenant cases blocked | 1/1 | 1/1 |
 | Recommendations from the live model | 0/9 | 9/9 |
 
-`results/eval.md` (mock) and `results/eval_bedrock.md` (live, `us-east-1`, `us.anthropic.claude-sonnet-4-6`).
-**Region note:** the live run used `us-east-1` because the development Bedrock API key is bound to that region.
-The deployment target in `infra/` is `ap-south-1` so masked evidence never leaves India; nothing in the
-code depends on the region — it is one environment variable and one IAM policy ARN. The 11-point gap between raw and gated
+`results/eval.md` (mock) and `results/eval_bedrock.md` (live, `us-east-1`, `us.anthropic.claude-sonnet-4-6`). The 11-point gap between raw and gated
 accuracy is the measured value of the deterministic layer, and in both columns the one raw miss is DSP008:
 the model is right on the merits and the gate — not the model — owns the deadline. On DSP009 the live model
 read the injected instructions and still recommended escalate; the screen flagged it regardless.
