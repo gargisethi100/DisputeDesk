@@ -1,0 +1,14 @@
+# CodeBuild spec — builds the image in the cloud and pushes to ECR (no local Docker needed).
+# ECR_URI and IMAGE_TAG are injected by infra/deploy.ps1.
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_URI
+  build:
+    commands:
+      - docker build -t $ECR_URI:$IMAGE_TAG -t $ECR_URI:latest .
+  post_build:
+    commands:
+      - docker push $ECR_URI:$IMAGE_TAG
+      - docker push $ECR_URI:latest

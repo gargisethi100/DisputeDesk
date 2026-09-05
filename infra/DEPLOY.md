@@ -3,6 +3,24 @@
 One container, one Streamlit process, model calls go to Bedrock via the **task role**
 (no keys in the image or env). Fallback if the cap is hit: Streamlit Community Cloud in mock mode.
 
+## Scripted path (recommended) - no local Docker needed
+
+```powershell
+# one-time: credentials for a deploy profile (region us-east-1)
+& "C:\Program Files\Amazon\AWSCLIV2\aws.exe" configure --profile disputedesk
+
+.\infra\deploy.ps1                       # mock mode
+.\infra\deploy.ps1 -Provider bedrock     # live model (enable model access in the account first)
+.\infra\teardown.ps1                     # remove everything, stop the bill
+```
+
+`deploy.ps1` is idempotent and does, in order: ECR repo -> zip the source to S3 -> CodeBuild role +
+project (`buildspec.yml`) -> cloud image build + push -> ECS execution/task roles (least privilege) ->
+cluster + task definition -> default-VPC security groups (8501 only from the ALB) -> ALB + target group
+(health `/_stcore/health`) + listener -> Fargate service. It prints the ALB URL at the end.
+
+The manual steps below are the same thing, for reference or for a non-Windows machine.
+
 ## 0. Local check (mock mode)
 ```bash
 docker build -t disputedesk .

@@ -108,7 +108,10 @@ def _parse_json(raw: str) -> dict:
 def recommend(provider: LLMProvider, dispute: Dispute, bundle: EvidenceBundle, passages: list[Passage],
               redactor: Redactor, now: datetime) -> Recommendation:
     prompt = build_analyst_prompt(dispute, bundle, passages, redactor, now)
-    raw = provider.complete(SYSTEM_ANALYST, prompt)
+    try:
+        raw = provider.complete(SYSTEM_ANALYST, prompt)
+    except Exception as e:                       # network / auth / throttling -> same fallback as bad output
+        return heuristic_recommend(dispute, bundle, passages, note=f"provider error: {type(e).__name__}")
     try:
         data = _parse_json(raw)
         data.pop("source", None)
@@ -193,7 +196,10 @@ def draft_response(provider: LLMProvider, dispute: Dispute, bundle: EvidenceBund
     user = (f"Dispute {dispute.dispute_id}, reason code {dispute.reason_code.value}, amount {amount}, "
             f"card ending {dispute.card_last4}.\nEvidence:\n{facts}\n\nRationale: {redactor.redact(rec.rationale)}")
     assert not redactor.has_leak(user), "PII would reach the model"   # never remove
-    raw = provider.complete(SYSTEM_DRAFTER, user, max_tokens=600).strip()
+    try:
+        raw = provider.complete(SYSTEM_DRAFTER, user, max_tokens=600).strip()
+    except Exception:                            # fall through to the template
+        raw = ""
     if raw and not redactor.has_leak(raw):
         return DraftResponse(subject=f"Representment for dispute {dispute.dispute_id}", body=redactor.restore(raw),
                              evidence_refs=refs, source="llm")
