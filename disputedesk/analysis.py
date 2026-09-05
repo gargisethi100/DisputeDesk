@@ -24,6 +24,7 @@ from .models import (
 )
 from .redaction import Redactor
 from .screening import fence
+from .tracing import traced
 
 SYSTEM_ANALYST = """You are a chargeback analyst working for the merchant. You will receive a dispute, an evidence checklist gathered from the merchant's own systems, and policy passages. Recommend ONE action.
 
@@ -100,6 +101,7 @@ def _parse_json(raw: str) -> dict:
 # --------------------------------------------------------------------------- #
 # Recommend
 # --------------------------------------------------------------------------- #
+@traced("recommend")
 def recommend(provider: LLMProvider, dispute: Dispute, bundle: EvidenceBundle, passages: list[Passage],
               redactor: Redactor, now: datetime) -> Recommendation:
     prompt = build_analyst_prompt(dispute, bundle, passages, redactor, now)
@@ -165,6 +167,7 @@ def heuristic_recommend(dispute: Dispute, bundle: EvidenceBundle, passages: list
 # --------------------------------------------------------------------------- #
 # Draft
 # --------------------------------------------------------------------------- #
+@traced("draft_response")
 def draft_response(provider: LLMProvider, dispute: Dispute, bundle: EvidenceBundle, gate: GateDecision,
                    rec: Recommendation, redactor: Redactor) -> DraftResponse:
     present = [it for it in bundle.items if it.present and it.supports_merchant]
