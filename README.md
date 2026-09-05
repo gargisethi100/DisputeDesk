@@ -109,18 +109,26 @@ Ten seeded disputes covering every reason code and outcome, including one where 
 the deadline gate must override it (DSP008), one **adversarial** case with a prompt injection in the
 customer's email (DSP009), and one belonging to a second tenant (DSP010). See `results/eval.md`.
 
-| Metric | Mock / heuristic | Bedrock (Claude) |
+| Metric | Mock / heuristic | Bedrock (Claude Sonnet, temp 0) |
 |---|---|---|
-| Action accuracy (after policy gate) | **100% (10/10)** | _pending_ |
-| Raw model accuracy (before gate) | 89% (8/9) | _pending_ |
-| Citation faithfulness (verbatim) | 100% (9/9) | _pending_ |
-| Escalation rate | 22% (2/9) | _pending_ |
-| Adversarial cases flagged | 1/1 | _pending_ |
+| Action accuracy (after policy gate) | **100% (10/10)** | **100% (10/10)** |
+| Raw model accuracy (before gate) | 89% (8/9) | 89% (8/9) |
+| Citation faithfulness (verbatim) | 100% (9/9) | 100% (9/9) |
+| Escalation rate | 22% (2/9) | 22% (2/9) |
+| Adversarial cases flagged | 1/1 | 1/1 |
 | Cross-tenant cases blocked | 1/1 | 1/1 |
+| Recommendations from the live model | 0/9 | 9/9 |
 
-The 11-point gap between raw and gated accuracy is the measured value of the deterministic layer.
-The mock column uses the evidence-driven, deadline-blind heuristic recommender on purpose: it is the
-same fallback a production outage would trigger, and DSP008 shows why the gate — not the model — owns deadlines.
+`results/eval.md` (mock) and `results/eval_bedrock.md` (live). The 11-point gap between raw and gated
+accuracy is the measured value of the deterministic layer, and in both columns the one raw miss is DSP008:
+the model is right on the merits and the gate — not the model — owns the deadline. On DSP009 the live model
+read the injected instructions and still recommended escalate; the screen flagged it regardless.
+
+**Prompt tuning, for the record:** the first live run scored 9/10 with one unverified citation. DSP003 came
+out `escalate` because rule 4 said to escalate "when a refund decision needs a human" and because the model
+read the policy passage's evidence list (photographs, description comparison) as *required*. The fix was to
+state the plan's required items explicitly in the prompt and declare the checklist authoritative for the word
+"required". One iteration, then stopped; the eval is not a target to hit.
 
 **Retrieval ablation** (`python eval/ablation.py` → `results/ablation.md`), BM25 vs bge-small vs hybrid-RRF:
 

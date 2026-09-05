@@ -61,7 +61,8 @@ def main() -> int:
     print(f"  action={r['action']}  confidence={r['confidence']:.2f}")
     print(f"  {r['rationale']}")
     for c, v in zip(r["citations"], s["verification"]["verdicts"]):
-        print(f"  [{'✓' if v['verified'] else '✗'}] {c['passage_id'].split('#')[1]}: “{c['quote'][:100]}”" + (f"  ({v['reason']})" if not v['verified'] else ""))
+        q = c["quote"] if not v["verified"] else c["quote"][:100]      # show the whole quote when it failed
+        print(f"  [{'✓' if v['verified'] else '✗'}] {c['passage_id'].split('#')[1]}: “{q}”" + (f"  ({v['reason']})" if not v['verified'] else ""))
 
     g = s["gate"]
     _hr("policy gate")
