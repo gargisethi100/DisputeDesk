@@ -69,7 +69,11 @@ if ($SkipBuild) {
   robocopy $root $stage /E /XD .venv .git __pycache__ .pytest_cache audit .index /XF .env *.jsonl *.faiss /NFL /NDL /NJH /NJS | Out-Null
   $zip = Join-Path $env:TEMP "$Name-src.zip"
   if (Test-Path $zip) { Remove-Item $zip -Force }
-  Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip
+  # NOT Compress-Archive: it writes backslash entry names, which unzip on Linux as flat files
+  # (no package directory). Windows tar.exe (libarchive) writes forward slashes.
+  $names = Get-ChildItem $stage -Name
+  & tar.exe -a -cf $zip -C $stage @names
+  if ($LASTEXITCODE -ne 0) { throw "tar failed to create $zip" }
   A s3 cp $zip "s3://$bucket/source.zip" | Out-Null
   Write-Host "s3://$bucket/source.zip ($([math]::Round((Get-Item $zip).Length/1KB)) KB)"
 
