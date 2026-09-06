@@ -164,8 +164,10 @@ Try-A ec2 authorize-security-group-ingress --group-id $taskSg --protocol tcp --p
 Step "load balancer + target group"
 $albArn = Try-A elbv2 describe-load-balancers --names "$Name-alb" --query "LoadBalancers[0].LoadBalancerArn" --output text
 if (-not $albArn -or $albArn -eq "None") {
-  $albArn = A elbv2 create-load-balancer --name "$Name-alb" --type application --scheme internet-facing --subnets $subnets[0] $subnets[1] --security-groups $albSg --query "LoadBalancers[0].LoadBalancerArn" --output text
+  $albArn = A elbv2 create-load-balancer --name "$Name-alb" --type application --scheme internet-facing --subnets $subnets --security-groups $albSg --query "LoadBalancers[0].LoadBalancerArn" --output text
 }
+# the service launches tasks in every default subnet, so the ALB must cover every AZ too
+A elbv2 set-subnets --load-balancer-arn $albArn --subnets $subnets | Out-Null
 A elbv2 modify-load-balancer-attributes --load-balancer-arn $albArn --attributes "Key=idle_timeout.timeout_seconds,Value=300" | Out-Null
 $tgArn = Try-A elbv2 describe-target-groups --names "$Name-tg" --query "TargetGroups[0].TargetGroupArn" --output text
 if (-not $tgArn -or $tgArn -eq "None") {
