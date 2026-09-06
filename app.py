@@ -191,8 +191,9 @@ if not s:
 # ------------------------------------------------------------------ case header
 d, g, r, ev, scr = s["dispute"], s["gate"], s["recommendation"], s["evidence"], s["screening"]
 left_txt, left_cls = days_left(d["respond_by"])
-flags = (f"<span class='flag {'bad' if scr['flagged'] else ''}'>Customer message: {'instruction-like text found, ' + ', '.join(scr['hits']) if scr['flagged'] else 'nothing suspicious'}</span>"
-         f"<span class='flag'>{s.get('pii_masked_count', 0)} personal details masked before the model saw anything</span>")
+n_pii = s.get("pii_masked_count", 0)
+flags = (f"<span class='flag {'bad' if scr['flagged'] else ''}'>Screening: {'flagged, ' + ', '.join(scr['hits']) if scr['flagged'] else 'clean'}</span>"
+         f"<span class='flag'>Masked before the model: {n_pii} detail{'s' if n_pii != 1 else ''}</span>")
 st.markdown(
     f"<div class='dd-case'><div>"
     f"<h1>Case {esc(d['dispute_id'])}</h1>"
@@ -207,7 +208,7 @@ col_l, col_r = st.columns([7, 5], gap="large")
 
 # ------------------------------------------------------------------ left: the record
 with col_l:
-    st.markdown(f"<h2 class='dd'>Evidence for {d['reason_code']}<span>gathered by read-only tools</span></h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 class='dd'>Evidence for {d['reason_code']}</h2>", unsafe_allow_html=True)
     rows = []
     for it in ev["items"]:
         req = it["kind"] in ev["required"]
@@ -265,7 +266,7 @@ with col_r:
         st.markdown(f"<div class='letter'>{esc(final['final_body'])}</div>", unsafe_allow_html=True)
     else:
         draft_src = "written by the model" if s["draft"]["source"] == "llm" else "from the template"
-        st.markdown(f"<h2 class='dd'>Response letter<span>{draft_src}, edit freely</span></h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 class='dd'>Response letter<span>{draft_src}</span></h2>", unsafe_allow_html=True)
         body = st.text_area("Response letter", s["draft"]["body"], height=300, label_visibility="collapsed")
         escalated = g["final_action"] == "escalate"
         if escalated:
