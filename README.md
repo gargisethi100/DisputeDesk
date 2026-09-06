@@ -183,6 +183,12 @@ corpus/           public-rules corpus          eval/     10 cases, harness, abla
 tests/            32 tests                     infra/    ECS task def, IAM, DEPLOY.md
 ```
 
+## Design decisions
+
+Every consequential choice, why it was made, and what was rejected to make it, is written up in
+[DECISIONS.md](DECISIONS.md) — including how the eval was designed, why the raw pre-gate number is
+published alongside the flattering post-gate one, and the retrieval ablation whose prior did not survive.
+
 ## Limitations and next steps
 
 - Evidence gathering follows a fixed plan per reason code. Next: LLM tool-planning constrained to the same read-only toolbox, with the plan as a floor.
