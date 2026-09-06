@@ -176,7 +176,8 @@ if st.session_state.get("denied"):
 # ------------------------------------------------------------------ empty state: the queue
 s = st.session_state.get("state")
 if not s:
-    st.markdown("<h2 class='dd' style='margin-top:.2rem'>Open cases<span>choose one in the sidebar and press Open case</span></h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='dd' style='margin-top:.2rem'>Cases waiting for review</h2>"
+                "<p style='margin:0 0 .9rem'>Select a case in the sidebar to open it.</p>", unsafe_allow_html=True)
     rows = []
     for c in CASES:
         d = db.DISPUTES[c["dispute_id"]]
