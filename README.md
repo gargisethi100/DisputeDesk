@@ -6,7 +6,7 @@ grounded in verbatim citations**, runs it through a **deterministic policy gate*
 and then **pauses for human approval**. Nothing is submitted without a human decision, and the one
 write in the codebase needs a single-use token that only a human decision can mint.
 
-> **Live demo:** http://disputedesk-alb-10088650.us-east-1.elb.amazonaws.com (ECS Fargate, live Claude via task role; may be torn down to stop billing) · **Walkthrough (5 min):** _pending_
+> **Live demo:** http://disputedesk-alb-10088650.us-east-1.elb.amazonaws.com (ECS Fargate, live Claude via task role; may be torn down to stop billing) · **Walkthrough (5 min):** https://www.loom.com/share/b3098faa68c54bc193c8cb35f9c32584
 > Built against public RBI and card-network dispute rules (see [Corpus](#corpus)). No gateway is named in the app.
 
 ## The question this answers
