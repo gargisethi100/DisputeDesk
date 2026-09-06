@@ -171,6 +171,17 @@ with st.sidebar:
         except TenantViolation as e:
             st.session_state.update(thread_id=None, state=None, denied=str(e))
 
+# deep link: ?case=DSP009&merchant=MER001 opens a case on load (handy for demos and bookmarks)
+qp_case = st.query_params.get("case")
+if qp_case and "state" not in st.session_state and "denied" not in st.session_state and qp_case in db.DISPUTES:
+    qp_merchant = st.query_params.get("merchant", merchant_id)
+    try:
+        thread_id, state = run_until_review(qp_case, qp_merchant)
+        st.session_state.update(thread_id=thread_id, state=state, denied=None)
+        merchant_id = qp_merchant
+    except TenantViolation as e:
+        st.session_state.update(thread_id=None, state=None, denied=str(e))
+
 merchant_name = db.MERCHANTS[merchant_id].name
 st.markdown(f"<div class='dd-topbar'><span class='dd-brand'>DisputeDesk</span><span class='ctx'>{esc(merchant_name)}, reviewer {esc(reviewer)}</span></div>", unsafe_allow_html=True)
 
