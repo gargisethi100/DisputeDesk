@@ -89,7 +89,7 @@ if ($SkipBuild) {
    {"Effect":"Allow","Action":["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"],"Resource":"*"}]}
 "@
   Set-Content -Path "$tmp\trust.json" -Value $cbTrust -Encoding ascii
-  Set-Content -Path "$tmp\policy.json" -Value $cbPolicy -Encoding ascii
+  Set-Content -Path "$tmp\policy.json" -Value $cbPolicy.Trim() -Encoding ascii
   $cbRoleArn = Try-A iam get-role --role-name $cbRole --query Role.Arn --output text
   if (-not $cbRoleArn) {
     $cbRoleArn = A iam create-role --role-name $cbRole --assume-role-policy-document "file://$tmp/trust.json" --query Role.Arn --output text
