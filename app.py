@@ -41,7 +41,11 @@ CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap');
 :root{--ground:#EEF1F4;--surface:#FFFFFF;--ink:#16212B;--muted:#5B6773;--rule:#D3DAE1;--accent:#0F5C6E;
       --filed:#1F6F4A;--held:#9A5B00;--blocked:#A32D2D;--mark:#DCEBEF;}
-html,body,[data-testid="stAppViewContainer"] *,[data-testid="stSidebar"] *{font-family:'Public Sans',system-ui,-apple-system,sans-serif}
+html,body,p,li,td,th,h1,h2,h3,h4,label,input,textarea,button,select,
+.stMarkdown,.stCaption,[data-testid="stSidebar"] p,[data-testid="stSidebar"] label,[data-testid="stExpander"] summary p,
+[data-testid="stDataFrame"] *:not([class*="material"]){font-family:'Public Sans',system-ui,-apple-system,sans-serif}
+/* Streamlit draws its chevrons and sidebar toggle with the Material Symbols ligature font; never override it */
+[data-testid="stIconMaterial"],.material-symbols-rounded,span[class*="material-symbols"]{font-family:'Material Symbols Rounded' !important}
 [data-testid="stAppViewContainer"]{background:var(--ground)}
 header[data-testid="stHeader"]{background:transparent}
 #MainMenu,footer{visibility:hidden}
