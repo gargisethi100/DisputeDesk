@@ -159,7 +159,6 @@ with st.sidebar:
             st.session_state.update(thread_id=thread_id, state=state, denied=None)
         except TenantViolation as e:
             st.session_state.update(thread_id=None, state=None, denied=str(e))
-    st.caption(f"Model: {'Claude via Bedrock' if PROVIDER == 'bedrock' else 'offline (rule-based)'}. Clock frozen at {db.NOW:%d %b %Y} for reproducible deadlines.")
 
 merchant_name = db.MERCHANTS[merchant_id].name
 st.markdown(f"<div class='dd-topbar'><span class='dd-brand'>DisputeDesk</span><span class='ctx'>{esc(merchant_name)}, reviewer {esc(reviewer)}</span></div>", unsafe_allow_html=True)
@@ -187,8 +186,6 @@ if not s:
                     f"<td>{d.respond_by:%d %b}, {left}</td><td class='detail'>{esc(c['note'])}</td></tr>")
     st.markdown("<table class='ev queue'><tr><th>Case</th><th>Merchant</th><th>Reason</th><th style='text-align:right'>Amount</th><th>Respond by</th><th>What this case shows</th></tr>"
                 + "".join(rows) + "</table>", unsafe_allow_html=True)
-    st.markdown("<p class='legend'>For a walkthrough: DSP001 files a contest, DSP008 shows the gate overriding a correct model on a missed deadline, "
-                "DSP009 carries a prompt injection in the customer's email, DSP010 is unreachable from the wrong merchant.</p>", unsafe_allow_html=True)
     st.stop()
 
 # ------------------------------------------------------------------ case header
