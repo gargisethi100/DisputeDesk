@@ -14,7 +14,8 @@ param(
   [string]$Region = "us-east-1",
   [string]$Name = "disputedesk",
   [ValidateSet("mock", "bedrock")][string]$Provider = "mock",
-  [string]$ModelId = "us.anthropic.claude-sonnet-4-6"
+  [string]$ModelId = "us.anthropic.claude-sonnet-4-6",
+  [switch]$SkipBuild
 )
 $ErrorActionPreference = "Continue"
 $aws = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
@@ -47,65 +48,73 @@ $ecrUri = Try-A ecr describe-repositories --repository-names $Name --query "repo
 if (-not $ecrUri) { $ecrUri = A ecr create-repository --repository-name $Name --image-scanning-configuration scanOnPush=true --query "repository.repositoryUri" --output text }
 Write-Host $ecrUri
 
-# ---------------------------------------------------------------- 2. source zip -> S3
-Step "source zip -> S3"
-$bucket = "$Name-src-$acct"
-if ($null -eq (Try-A s3api head-bucket --bucket $bucket)) {
-  if ($Region -eq "us-east-1") { A s3api create-bucket --bucket $bucket | Out-Null }
-  else { A s3api create-bucket --bucket $bucket --create-bucket-configuration LocationConstraint=$Region | Out-Null }
-}
-$stage = Join-Path $env:TEMP "$Name-src"
-if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
-robocopy $root $stage /E /XD .venv .git __pycache__ .pytest_cache audit .index /XF .env *.jsonl *.faiss /NFL /NDL /NJH /NJS | Out-Null
-$zip = Join-Path $env:TEMP "$Name-src.zip"
-if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip
-A s3 cp $zip "s3://$bucket/source.zip" | Out-Null
-Write-Host "s3://$bucket/source.zip ($([math]::Round((Get-Item $zip).Length/1KB)) KB)"
-
-# ---------------------------------------------------------------- 3. CodeBuild role + project
-Step "CodeBuild role"
-$cbRole = "$Name-codebuild-role"
-$cbTrust = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"codebuild.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
-$cbPolicy = @"
-{"Version":"2012-10-17","Statement":[
- {"Effect":"Allow","Action":["ecr:GetAuthorizationToken"],"Resource":"*"},
- {"Effect":"Allow","Action":["ecr:BatchCheckLayerAvailability","ecr:CompleteLayerUpload","ecr:InitiateLayerUpload","ecr:PutImage","ecr:UploadLayerPart","ecr:BatchGetImage","ecr:GetDownloadUrlForLayer"],"Resource":"arn:aws:ecr:${Region}:${acct}:repository/${Name}"},
- {"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion"],"Resource":"arn:aws:s3:::${bucket}/*"},
- {"Effect":"Allow","Action":["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"],"Resource":"*"}]}
-"@
 $tmp = Join-Path $env:TEMP "$Name-cb"
 New-Item -ItemType Directory -Force $tmp | Out-Null
-Set-Content -Path "$tmp\trust.json" -Value $cbTrust -Encoding ascii
-Set-Content -Path "$tmp\policy.json" -Value $cbPolicy -Encoding ascii
-$cbRoleArn = Try-A iam get-role --role-name $cbRole --query Role.Arn --output text
-if (-not $cbRoleArn) {
-  $cbRoleArn = A iam create-role --role-name $cbRole --assume-role-policy-document "file://$tmp/trust.json" --query Role.Arn --output text
-  Start-Sleep 10                                        # IAM propagation
-}
-A iam put-role-policy --role-name $cbRole --policy-name build-push --policy-document "file://$tmp/policy.json" | Out-Null
 
-Step "CodeBuild project"
-$envVars = "[{name=ECR_URI,value=$ecrUri},{name=IMAGE_TAG,value=$tag}]"
-$envArg = "type=LINUX_CONTAINER,image=aws/codebuild/standard:7.0,computeType=BUILD_GENERAL1_SMALL,privilegedMode=true,environmentVariables=$envVars"
-$srcArg = "type=S3,location=$bucket/source.zip"
-$exists = Try-A codebuild batch-get-projects --names $Name --query "projects[0].name" --output text
-if ($exists -and $exists -ne "None") {
-  A codebuild update-project --name $Name --source $srcArg --environment $envArg --service-role $cbRoleArn | Out-Null
+# ---------------------------------------------------------------- 2. source zip -> S3
+if ($SkipBuild) {
+  Step "reusing newest image in ECR (-SkipBuild)"
+  $latest = A ecr describe-images --repository-name $Name --query "sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]" --output text
+  $image = "${ecrUri}:$latest"
+  Write-Host $image
 } else {
-  A codebuild create-project --name $Name --source $srcArg --artifacts type=NO_ARTIFACTS --environment $envArg --service-role $cbRoleArn | Out-Null
-}
+  Step "source zip -> S3"
+  $bucket = "$Name-src-$acct"
+  if ($null -eq (Try-A s3api head-bucket --bucket $bucket)) {
+    if ($Region -eq "us-east-1") { A s3api create-bucket --bucket $bucket | Out-Null }
+    else { A s3api create-bucket --bucket $bucket --create-bucket-configuration LocationConstraint=$Region | Out-Null }
+  }
+  $stage = Join-Path $env:TEMP "$Name-src"
+  if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+  robocopy $root $stage /E /XD .venv .git __pycache__ .pytest_cache audit .index /XF .env *.jsonl *.faiss /NFL /NDL /NJH /NJS | Out-Null
+  $zip = Join-Path $env:TEMP "$Name-src.zip"
+  if (Test-Path $zip) { Remove-Item $zip -Force }
+  Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip
+  A s3 cp $zip "s3://$bucket/source.zip" | Out-Null
+  Write-Host "s3://$bucket/source.zip ($([math]::Round((Get-Item $zip).Length/1KB)) KB)"
 
-Step "build image in the cloud (3-6 min)"
-$buildId = A codebuild start-build --project-name $Name --query "build.id" --output text
-do {
-  Start-Sleep 20
-  $status = A codebuild batch-get-builds --ids $buildId --query "builds[0].buildStatus" --output text
-  Write-Host "  $status"
-} while ($status -eq "IN_PROGRESS")
-if ($status -ne "SUCCEEDED") { throw "build $buildId ended $status - see CodeBuild console logs" }
-$image = "${ecrUri}:$tag"
-Write-Host $image
+  # ---------------------------------------------------------------- 3. CodeBuild role + project
+  Step "CodeBuild role"
+  $cbRole = "$Name-codebuild-role"
+  $cbTrust = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"codebuild.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+  $cbPolicy = @"
+  {"Version":"2012-10-17","Statement":[
+   {"Effect":"Allow","Action":["ecr:GetAuthorizationToken"],"Resource":"*"},
+   {"Effect":"Allow","Action":["ecr:BatchCheckLayerAvailability","ecr:CompleteLayerUpload","ecr:InitiateLayerUpload","ecr:PutImage","ecr:UploadLayerPart","ecr:BatchGetImage","ecr:GetDownloadUrlForLayer"],"Resource":"arn:aws:ecr:${Region}:${acct}:repository/${Name}"},
+   {"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion"],"Resource":"arn:aws:s3:::${bucket}/*"},
+   {"Effect":"Allow","Action":["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"],"Resource":"*"}]}
+"@
+  Set-Content -Path "$tmp\trust.json" -Value $cbTrust -Encoding ascii
+  Set-Content -Path "$tmp\policy.json" -Value $cbPolicy -Encoding ascii
+  $cbRoleArn = Try-A iam get-role --role-name $cbRole --query Role.Arn --output text
+  if (-not $cbRoleArn) {
+    $cbRoleArn = A iam create-role --role-name $cbRole --assume-role-policy-document "file://$tmp/trust.json" --query Role.Arn --output text
+    Start-Sleep 10                                        # IAM propagation
+  }
+  A iam put-role-policy --role-name $cbRole --policy-name build-push --policy-document "file://$tmp/policy.json" | Out-Null
+
+  Step "CodeBuild project"
+  $envVars = "[{name=ECR_URI,value=$ecrUri},{name=IMAGE_TAG,value=$tag}]"
+  $envArg = "type=LINUX_CONTAINER,image=aws/codebuild/standard:7.0,computeType=BUILD_GENERAL1_SMALL,privilegedMode=true,environmentVariables=$envVars"
+  $srcArg = "type=S3,location=$bucket/source.zip"
+  $exists = Try-A codebuild batch-get-projects --names $Name --query "projects[0].name" --output text
+  if ($exists -and $exists -ne "None") {
+    A codebuild update-project --name $Name --source $srcArg --environment $envArg --service-role $cbRoleArn | Out-Null
+  } else {
+    A codebuild create-project --name $Name --source $srcArg --artifacts type=NO_ARTIFACTS --environment $envArg --service-role $cbRoleArn | Out-Null
+  }
+
+  Step "build image in the cloud (3-6 min)"
+  $buildId = A codebuild start-build --project-name $Name --query "build.id" --output text
+  do {
+    Start-Sleep 20
+    $status = A codebuild batch-get-builds --ids $buildId --query "builds[0].buildStatus" --output text
+    Write-Host "  $status"
+  } while ($status -eq "IN_PROGRESS")
+  if ($status -ne "SUCCEEDED") { throw "build $buildId ended $status - see CodeBuild console logs" }
+  $image = "${ecrUri}:$tag"
+  Write-Host $image
+}
 
 # ---------------------------------------------------------------- 4. ECS roles
 Step "ECS roles"
@@ -140,7 +149,7 @@ Write-Host $tdArn
 
 # ---------------------------------------------------------------- 6. networking
 Step "networking (default VPC)"
-$vpc = A ec2 describe-vpcs --filters Name=isDefault,Values=true --query "Vpcs[0].VpcId" --output text
+$vpc = A ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output text
 $subnets = (A ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc" "Name=default-for-az,Values=true" --query "Subnets[].SubnetId" --output text) -split "\s+"
 function Ensure-SG($sgName, $desc) {
   $id = Try-A ec2 describe-security-groups --filters "Name=group-name,Values=$sgName" "Name=vpc-id,Values=$vpc" --query "SecurityGroups[0].GroupId" --output text
@@ -157,7 +166,7 @@ $albArn = Try-A elbv2 describe-load-balancers --names "$Name-alb" --query "LoadB
 if (-not $albArn -or $albArn -eq "None") {
   $albArn = A elbv2 create-load-balancer --name "$Name-alb" --type application --scheme internet-facing --subnets $subnets[0] $subnets[1] --security-groups $albSg --query "LoadBalancers[0].LoadBalancerArn" --output text
 }
-A elbv2 modify-load-balancer-attributes --load-balancer-arn $albArn --attributes Key=idle_timeout.timeout_seconds,Value=300 | Out-Null
+A elbv2 modify-load-balancer-attributes --load-balancer-arn $albArn --attributes "Key=idle_timeout.timeout_seconds,Value=300" | Out-Null
 $tgArn = Try-A elbv2 describe-target-groups --names "$Name-tg" --query "TargetGroups[0].TargetGroupArn" --output text
 if (-not $tgArn -or $tgArn -eq "None") {
   $tgArn = A elbv2 create-target-group --name "$Name-tg" --protocol HTTP --port 8501 --vpc-id $vpc --target-type ip --health-check-path /_stcore/health --health-check-interval-seconds 30 --query "TargetGroups[0].TargetGroupArn" --output text
